@@ -1,0 +1,16 @@
+# -*- coding: utf-8 -*-
+
+# Define your item pipelines here
+#
+# Don't forget to add your pipeline to the ITEM_PIPELINES setting
+# See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
+from crawl_selected.repository.crawl import *
+
+class CrawlSelectedPipeline(object):
+    def __init__(self):
+        self.crawldb = CrawlRepository()
+
+    def process_item(self, item, spider):
+        self.crawldb.saveCrawlDetail(item)
+        # spider.logger.info("save %s %s" % (item["url"],id))
+        return item
