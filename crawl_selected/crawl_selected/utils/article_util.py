@@ -24,7 +24,7 @@ class ArticleUtils(object):
         if str is None:
             return u""
         dd = str
-        #已<div>作为段落标准的文章
+        #<div>作为段落标准的文章
         if "</p>" not in str and "</div>" in str:
             drPre = re.compile(u'<div.*?>')
             dd = drPre.sub(u"<p>", dd)
@@ -94,34 +94,31 @@ class ArticleUtils(object):
                 if regex.regexField == "list":
                     contentResponse = contentResponse.xpath(regex.regexContent)
                 else:
-                    regexContentArr = regex.regexContent.split("|")
-                    for regexContent in regexContentArr:
-                        contentResponse = contentResponse.xpath(regexContent)
-                        contentResponseExtract = contentResponse.extract()
-                        if len(contentResponseExtract) <= 0:
-                            continue
-                        content = ArticleUtils.removeAllTag("".join(contentResponseExtract))
-                        if (StringUtils.isEmpty(content)):
-                            continue
-                        else:
-                            break
+                    contentResponse = ArticleUtils.getResponseContents4xpath(regex,contentResponse)
         if type(contentResponse) == list:
             return contentResponse
         return contentResponse.extract()
 
     @classmethod
-    def getResponseContents4ContentRegex(cls, webRegexs, response):
-        contentResponses = webRegexs[-1].regexContent.split("|")
+    def getResponseContents4xpath(cls,xpathRegex,response):
+        regexContentArr = xpathRegex.regexContent.split("|")
         contentResponse = None
-        for contentR in contentResponses:
-            contentResponse = response.xpath(contentR).extract()
-            if len(contentResponse) <=0:
+        for regexContent in regexContentArr:
+            contentResponse = response.xpath(regexContent)
+            contentResponseExtract = contentResponse.extract()
+            if len(contentResponseExtract) <= 0:
                 continue
-            content = ArticleUtils.removeAllTag("".join(contentResponse))
-            if(StringUtils.isEmpty(content)):
+            content = ArticleUtils.removeAllTag("".join(contentResponseExtract))
+            if (StringUtils.isEmpty(content)):
                 continue
             else:
                 break
+        return contentResponse
+
+
+    @classmethod
+    def getResponseContents4ContentRegex(cls, webRegexs, response):
+        contentResponse = ArticleUtils.getResponseContents4xpath(webRegexs[-1],response).extract()
         contentRemovePage = []
         if len(contentResponse) > 1:
             for i, contentR in enumerate(contentResponse):
