@@ -12,5 +12,7 @@ class CrawlSelectedPipeline(object):
 
     def process_item(self, item, spider):
         self.crawldb.saveCrawlDetail(item)
+        if  not spider.name.startswith("history_"):
+            self.crawldb.saveCrawlStat(item)
         # spider.logger.info("save %s %s" % (item["url"],id))
         return item

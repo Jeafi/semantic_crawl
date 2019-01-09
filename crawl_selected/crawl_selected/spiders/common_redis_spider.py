@@ -53,6 +53,7 @@ class CommonRedisSpider(RedisSpider):  # 需要继承scrapy.Spider类
 
     def start_tasks(self):  # 由此方法通过下面链接爬取页面, 原start_requests()
         crawlName = self.name.replace("history_", "")
+        timestamp = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime(time.time()))  # 该次爬虫的时间戳
         # '''
         seeds = self.seedDB.get_seed(crawlName)
         '''
@@ -205,6 +206,9 @@ class CommonRedisSpider(RedisSpider):  # 需要继承scrapy.Spider类
             autoDetailData = meta["autoDetailData"]
         if len(autoDetailData) <=0:
             autoDetailData = ArticleUtils.getAutoDetail(response,enableDownloadImage,enableSnapshot,True)
+            if not self.name.startswith("history_"):
+                html = "".join(response.xpath("//html").extract())
+                autoDetailData["html"] = html
         else:
             pageAutoDetailData = ArticleUtils.getAutoDetail(response,enableDownloadImage,enableSnapshot,False)
             for (k,v) in pageAutoDetailData.items():
@@ -287,7 +291,8 @@ class CommonRedisSpider(RedisSpider):  # 需要继承scrapy.Spider类
                         item[k] = json.dumps(list(v.values()),ensure_ascii=False)
                     elif k not in item or StringUtils.isEmpty(ArticleUtils.removeAllTag(str(item[k]))):
                         item[k] = v
-
+                html = "".join(response.xpath("//html").extract())
+                item["html"] = html
                 yield item
 
 

@@ -247,10 +247,13 @@ class ArticleUtils(object):
         item["referer"] = referer
         item["url"] = url
         item["site"] = seed.site
-        listData = meta["listData"]
+        listData = {}
+        if "listData" in meta:
+            listData = meta["listData"]
         item["category"] = seed.category
         item["urlLabel"] = seed.urlLabel.split(",")
         item["crawlName"] = seed.crawlName
+        item["timestamp"] = meta["timestamp"]
         if StringUtils.isNotEmpty(seed.organization):
             item["organization"] = seed.organization
         for (k, v) in listData.items():

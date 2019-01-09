@@ -33,12 +33,14 @@ class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
     def start_requests(self):  # 由此方法通过下面链接爬取页面
         crawlName = self.name.replace("history_", "")
         seeds = self.seedDB.get_seed(crawlName)
+        timestamp = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime(time.time()))  # 该次爬虫的时间戳
         # seeds = self.get_seed_fromxls()
         # 从种子库的爬取
         for seed in seeds:
             meta = {}
             # meta["seedRegex"] = regex
             meta["depthNumber"] = 0
+            meta["timestamp"] = timestamp
             meta["pageNumber"] = 1
             meta['is_Nextpage'] = False
             meta["seedInfo"] = seed
@@ -62,6 +64,7 @@ class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
             for url in nextpage_urls:
                 meta['is_Nextpage']=True
                 yield scrapy.Request(url=url, meta=meta, callback=self.parse)
+
     def parseDetail(self, response):
         '''
         详情页解析
@@ -85,14 +88,14 @@ class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
             detailData = meta["detailData"]
         if len(detailData) <= 0:
             detailData["title"] = doc.title()  # 详情第一页时读入标题和url
-            detailData["publishAt"] = self.get_time(response)
+            detailData["publishAt"] = TimeUtils.get_conent_time(html)
             detailData["url"] = url
         content_snap = doc.summary()
         # 获取正文
         content = ArticleUtils.removeTag4Content(content_snap)
         ArticleUtils.mergeDict(detailData, "content", content)
         if enableDownloadImage:
-            images = self.get_image_urls(content_snap, url)
+            images = ArticleUtils.get_content_image_urls(content_snap, url)
             if images is not None and len(images) > 0:
                 ArticleUtils.mergeDict(detailData, "contentImages", images)
         if enableDownloadFile:
@@ -107,7 +110,7 @@ class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
             meta["detailData"] = detailData
             yield scrapy.Request(url=nextpage_urls, meta=meta, callback=self.parseDetail)
         else:
-            item = self.auto_meta2item(meta, detailData["url"])
+            item = ArticleUtils.meta2item(meta, detailData["url"])
             for (k, v) in detailData.items():
                 itemValue = None
                 if "category" == k and k in item:
@@ -118,6 +121,7 @@ class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
                     itemValue = v
                 item[k] = itemValue
             item['html'] = html
+
             yield item
 
         '''
@@ -128,77 +132,78 @@ class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
         #     f. write(meta["seedInfo"]+'\n')
         # item["seed"] = meta["url"]
 
-    def auto_meta2item(cls, meta, url):
-        seed = meta["seedInfo"]
-        referer = seed.url
-        item = CrawlResultItem()
-        item["mediaFrom"] = seed.mediaFrom
-        item["referer"] = referer
-        item["url"] = url
-        item["site"] = seed.site
-        # listData = meta["listData"]
-        item["category"] = seed.category
-        item["urlLabel"] = seed.urlLabel.split(",")
-        item["crawlName"] = seed.crawlName
-        if StringUtils.isNotEmpty(seed.organization):
-            item["organization"] = seed.organization
-        return item
+    # def auto_meta2item(cls, meta, url):
+    #     seed = meta["seedInfo"]
+    #     referer = seed.url
+    #     item = CrawlResultItem()
+    #     item["mediaFrom"] = seed.mediaFrom
+    #     item["referer"] = referer
+    #     item["url"] = url
+    #     item["site"] = seed.site
+    #     item["timestamp"] = meta["timestamp"]
+    #     # listData = meta["listData"]
+    #     item["category"] = seed.category
+    #     item["urlLabel"] = seed.urlLabel.split(",")
+    #     item["crawlName"] = seed.crawlName
+    #     if StringUtils.isNotEmpty(seed.organization):
+    #         item["organization"] = seed.organization
+    #     return item
 
-    def get_image_urls(self, html, source_url):
-        '''
-        @param html:正文html
-        @param url:本站地址
-        @return ：图片字典dict
-        '''
-        replace_pattern = r'<[img|IMG].*?/>'   # img标签的正则式
-        img_url_pattern = r'.+?src="(\S+)"'  # img_url的正则式
-        img_url_list = []
-        need_replace_list = re.findall(replace_pattern, html)  # 找到所有的img标签
-        for tag in need_replace_list:
-            url = re.findall(img_url_pattern, tag)
-            if url != []:
-                img_url_list.append(url[0])  # 找到所有的img_url
-        imageDict = {}
-        for img in img_url_list:
-            if StringUtils.isEmpty(img):
-                continue
-            if img.startswith("data:"):
-                continue
-            # 图片以二进制格式写在网页,不需要下载
-            url = ArticleUtils.getFullUrl(img, source_url)
-            imageDict[url] = {"id":ArticleUtils.getArticleId(url),"contentUrl":img,"url":url}
-        return imageDict
+    # def get_image_urls(self, html, source_url):
+    #     '''
+    #     @param html:正文html
+    #     @param url:本站地址
+    #     @return ：图片字典dict
+    #     '''
+    #     replace_pattern = r'<[img|IMG].*?/>'   # img标签的正则式
+    #     img_url_pattern = r'.+?src="(\S+)"'  # img_url的正则式
+    #     img_url_list = []
+    #     need_replace_list = re.findall(replace_pattern, html)  # 找到所有的img标签
+    #     for tag in need_replace_list:
+    #         url = re.findall(img_url_pattern, tag)
+    #         if url != []:
+    #             img_url_list.append(url[0])  # 找到所有的img_url
+    #     imageDict = {}
+    #     for img in img_url_list:
+    #         if StringUtils.isEmpty(img):
+    #             continue
+    #         if img.startswith("data:"):
+    #             continue
+    #         # 图片以二进制格式写在网页,不需要下载
+    #         url = ArticleUtils.getFullUrl(img, source_url)
+    #         imageDict[url] = {"id":ArticleUtils.getArticleId(url),"contentUrl":img,"url":url}
+    #     return imageDict
 
-    def get_time(self, response):
-        '''
-        提取时间,并转化为时间戳
-        @param response
-        @return 时间戳
-        '''
-        link_list =re.findall(r"((\d{4}|\d{2})(\-|\/)\d{1,2}\3\d{1,2})(\s?\d{2}:\d{2})?|(\d{4}年\d{1,2}月\d{1,2}日)(\s?\d{2}:\d{2})?" ,response.text)
-        time_get = ''
-        if link_list != []:
-            time_get = link_list[0][0]
-            for ele in link_list[0]:
-                if time_get.find(ele) == -1:
-                    time_get += ele
-            time_get = TimeUtils.convert2Mill4Default(time_get,"")
-        return time_get
+    # def get_time(self, response):
+    #     '''
+    #     提取时间,并转化为时间戳
+    #     @param response
+    #     @return 时间戳
+    #     '''
+    #     link_list =re.findall(r"((\d{4}|\d{2})(\-|\/)\d{1,2}\3\d{1,2})(\s?\d{2}:\d{2})?|(\d{4}年\d{1,2}月\d{1,2}日)(\s?\d{2}:\d{2})?" ,response.text)
+    #     time_get = ''
+    #     if link_list != []:
+    #         time_get = link_list[0][0]
+    #         for ele in link_list[0]:
+    #             if time_get.find(ele) == -1:
+    #                 time_get += ele
+    #         time_get = TimeUtils.convert2Mill4Default(time_get,"")
+    #     return time_get
 
-    def get_seed_fromxls(self):
-        '''
-        从xls中读初始url
-        '''
-        data = xlrd.open_workbook('seed.xls')
-        table = data.sheet_by_name(u'未抓取链接')
-        seeds = []
-        for seed in table.col_values(3):
-            seeds.append(WebSeed(seed))
-        return seeds
+    # def get_seed_fromxls(self):
+    #     '''
+    #     从xls中读初始url
+    #     '''
+    #     data = xlrd.open_workbook('seed.xls')
+    #     table = data.sheet_by_name(u'未抓取链接')
+    #     seeds = []
+    #     for seed in table.col_values(3):
+    #         seeds.append(WebSeed(seed))
+    #     return seeds
 
     def get_list_urls(self, starturl, response):
-        print('*******************************************')
-        print(starturl)
+        self.log('*******************************************')
+        self.log(starturl)
         '''
         从初始页面中提取列表url
         @param starturl：初始url
@@ -208,8 +213,8 @@ class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
         lastname = ''
         i = 0
         a_tags = response.xpath('//a')
-        print('-------------------------------')
-        print('所有的链接数目', len(a_tags))
+        self.log('-------------------------------')
+        self.log('所有的链接数目', len(a_tags))
         count = 0
         href_parent = dict()
 
@@ -279,21 +284,21 @@ class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
             # 链接描述平均字数和次数都大于阈值
             if child_total_length / child_count > 10.8 and word_count / child_count > 5.5 and child_count > 1:
                 count += len(href_parent[father_node])
-                print('------------------------')
-                print(father_node, child_count, child_total_length / child_count, word_count / child_count)
-                print("")
+                self.log('------------------------')
+                self.log("%s %d %f %f" % (father_node, child_count, child_total_length / child_count, word_count / child_count))
+
                 for _, text, _, href in href_parent[father_node]:
                     print(text, '|', href)
                     final_urls.append(href)
-                print('------------------------')
-        print('-------------------------------')
+                self.log('------------------------')
+        self.log('-------------------------------')
 
         for url in final_urls:
             regex = r"(maps?)|(ads)|(adverti(s|z)e(ment))|(outerlink)|(redirect(ion)?)"
             pattern = re.compile(regex)
             if pattern.search(url):
                 final_urls.pop(url)
-        print('过滤后的链接数目', len(final_urls))
+        self.log('过滤后的链接数目', len(final_urls))
         if len(final_urls) == 0:
             final_urls = self.get_list_urls2(starturl, response)
         return final_urls
@@ -306,8 +311,8 @@ class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
         @return url列表
         '''
         a_tags = response.xpath('//a')
-        print('-------------------------------')
-        print('所有的链接数目', len(a_tags))
+        self.log('-------------------------------')
+        self.log('所有的链接数目 %d'% len(a_tags))
         count = 0
         href_parent = dict()
 
@@ -368,19 +373,19 @@ class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
             # 链接描述平均字数和次数都大于阈值
             if child_total_length / child_count > 8 and word_count / child_count > 4 and child_count > 1:
                 count += len(href_parent[father_node])
-                print('------------------------')
-                print(father_node, child_count, child_total_length / child_count, word_count / child_count)
-                print("")
+                self.log('------------------------')
+                self.log(father_node, child_count, child_total_length / child_count, word_count / child_count)
+
                 for _, text, _, href in href_parent[father_node]:
-                    print(text, '|', href)
+                    self.log(text+'|'+href)
                     final_urls.append(href)
-                print('------------------------')
-        print('-------------------------------')
+                self.log('------------------------')
+        self.log('-------------------------------')
 
         for url in final_urls:
             regex = r"(maps?)|(ads)|(adverti(s|z)e(ment))|(outerlink)|(redirect(ion)?)"
             pattern = re.compile(regex)
             if pattern.search(url):
                 final_urls.pop(url)
-        print('过滤后的链接数目', len(final_urls))
+        self.log('过滤后的链接数目', len(final_urls))
         return final_urls

@@ -19,12 +19,14 @@ class CommonSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
     def start_requests(self):  # 由此方法通过下面链接爬取页面
         crawlName = self.name.replace("history_","")
         seeds = self.seedDB.get_seed(crawlName)
+        timestamp = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime(time.time()))  # 该次爬虫的时间戳
         # 定义爬取的链接
         for seed in seeds:
             regex = self.seedDB.get_regex(seed.regexName)
 
             if len(regex) > 0:
                 meta = {}
+                meta["timestamp"] = timestamp
                 meta["seedRegex"] = regex
                 meta["depthNumber"] = 0
                 meta["pageNumber"] = 1
@@ -140,6 +142,9 @@ class CommonSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
             autoDetailData = meta["autoDetailData"]
         if len(autoDetailData) <=0:
             autoDetailData = ArticleUtils.getAutoDetail(response,enableDownloadImage,enableSnapshot,True)
+            if not self.name.startswith("history_"):
+                html = "".join(response.xpath("//html").extract())
+                autoDetailData["html"] = html
         else:
             pageAutoDetailData = ArticleUtils.getAutoDetail(response,enableDownloadImage,enableSnapshot,False)
             for (k,v) in pageAutoDetailData.items():
@@ -218,7 +223,6 @@ class CommonSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
                         item[k] = json.dumps(list(v.values()),ensure_ascii=False)
                     elif k not in item or StringUtils.isEmpty(ArticleUtils.removeAllTag(str(item[k]))):
                         item[k] = v
-
                 yield item
 
 
