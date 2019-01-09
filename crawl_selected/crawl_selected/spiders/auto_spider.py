@@ -21,7 +21,7 @@ from crawl_selected.utils.time_util import *
 
 
 class AutoSpider(scrapy.Spider):  # 需要继承scrapy.Spider类
-    name = "auto_spider1"  # 定义蜘蛛名
+    name = "auto_spider"  # 定义蜘蛛名
     # timestamp = time.strftime('%Y-%m-%d %H-%M-%S',time.localtime(time.time()))
 
 
