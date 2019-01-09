@@ -8,6 +8,7 @@ from crawl_selected.utils.time_util import *
 from crawl_selected.repository.seed import *
 from crawl_selected.repository.crawl import *
 from urllib.parse import *
+from readability import Document
 import copy
 
 
@@ -24,6 +25,7 @@ class ArticleUtils(object):
         if str is None:
             return u""
         dd = str
+        dd = dd.replace("&#13;","<br>")
         #<div>作为段落标准的文章
         if "</p>" not in str and "</div>" in str:
             drPre = re.compile(u'<div.*?>')
@@ -32,6 +34,10 @@ class ArticleUtils(object):
             dd = drPre2.sub(u"</p>", dd)
         dr0 = re.compile(u'<script.*?>.*?</script>',re.S)
         dd = dr0.sub("",dd)
+        dr00 = re.compile(u'</body>', re.S)
+        dd = dr00.sub("",dd)
+        dr01 = re.compile(u'<body>', re.S)
+        dd = dr01.sub("", dd)
         dr = re.compile(u'<(?!p|/p|strong|/strong|b|/b)+[^>]+>', re.S)
         dd = dr.sub(u"", dd)
         dd = StringUtils.replaceSpecialWords(dd)
@@ -309,3 +315,48 @@ class ArticleUtils(object):
         if spiderName.startswith("history_") and "pageRenderType" in meta and meta["pageRenderType"] == 1:
             return True
         return False
+
+    @classmethod
+    def getAutoDetail(cls,response,enableDownloadImage=False,enableSnapshot=False,isFirstPage = True):
+        autoDetail = {}
+        try:
+            html = "".join(response.xpath("//html").extract())
+            doc = Document(html)
+            if isFirstPage:
+                autoDetail["title"] = doc.title()
+                autoDetail["publishAt"] = TimeUtils.get_conent_time(html)
+            contentSnapshot = doc.summary()
+            if enableSnapshot:
+                autoDetail["contentSnapshot"] = contentSnapshot.replace("<html>","").replace("</html>","").replace("<body>","").replace("</body>","")
+            autoDetail["content"] = ArticleUtils.removeTag4Content(contentSnapshot)
+            if enableDownloadImage:
+                autoDetail["contentImages"] = ArticleUtils.get_content_image_urls(contentSnapshot,response.url)
+        except Exception as e:
+            return autoDetail
+        return autoDetail
+
+    @classmethod
+    def get_content_image_urls(cls, html, source_url):
+        '''
+        @param html:正文html
+        @param url:本站地址
+        @return ：图片字典dict
+        '''
+        replace_pattern = r'<[img|IMG].*?/>'  # img标签的正则式
+        img_url_pattern = r'.+?src="(\S+)"'  # img_url的正则式
+        img_url_list = []
+        need_replace_list = re.findall(replace_pattern, html)  # 找到所有的img标签
+        for tag in need_replace_list:
+            url = re.findall(img_url_pattern, tag)
+            if url != []:
+                img_url_list.append(url[0])  # 找到所有的img_url
+        imageDict = {}
+        for img in img_url_list:
+            if StringUtils.isEmpty(img):
+                continue
+            if img.startswith("data:"):
+                continue
+            # 图片以二进制格式写在网页,不需要下载
+            url = ArticleUtils.getFullUrl(img, source_url)
+            imageDict[url] = {"id": ArticleUtils.getArticleId(url), "contentUrl": img, "url": url}
+        return imageDict

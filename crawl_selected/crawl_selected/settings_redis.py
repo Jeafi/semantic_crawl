@@ -26,7 +26,18 @@ SEED_REGEX_URL = 'http://information-db-service:31001/regex?regexName=%s&ps=1000
 
 
 ########redis配置##################################################
-
+DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
+SCHEDULER = "scrapy_redis.scheduler.Scheduler"
+SCHEDULER_PERSIST = True
+SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.PriorityQueue'
+SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.FifoQueue'
+REDIS_ITEMS_KEY = '%(spider)s:items'
+REDIS_URL = 'redis://root:GemanticYes!@10.0.0.22:7000'
+REDIS_START_URLS_KEY = '%(name)s:start_urls'
+EXTENSIONS = {
+'scrapy.extensions.telnet.TelnetConsole': None,
+    'crawl_selected.redis_extension.SetRedisInit': 500
+}
 #######文件下载请求################
 # FILE_DOWNLOAD_URL = 'http://file-download-service:31001/download?urls=%s&publishAt=%s'
 FILE_DOWNLOAD_URL = 'http://file-download-service:31001/download'
@@ -142,8 +153,7 @@ DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
    'crawl_selected.middlewares.CrawlSelectedDownloaderMiddleware': 543,
 }
-#提高并发数
-#CONCURRENT_REQUESTS = 100
+
 # Enable or disable extensions
 # See https://doc.scrapy.org/en/latest/topics/extensions.html
 #EXTENSIONS = {
