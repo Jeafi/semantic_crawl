@@ -252,7 +252,7 @@ class CommonRedisSpider(RedisSpider):  # 需要继承scrapy.Spider类
             metaCopy["detailData"] = detailData
             self.log("redirect url %s" % url)
             # metaCopy["parse"] = "detail"
-            self._set_redis_key(url, metaCopy)
+            self._set_redis_key(url, metaCopy,True)
             #获取不到正文，尝试使用js渲染方式，针对网站部分链接的详情页使用js跳转
             # yield scrapy.Request(url=url, meta=metaCopy, callback=self.parseDetail,dont_filter=True)
         else:
@@ -272,7 +272,7 @@ class CommonRedisSpider(RedisSpider):  # 需要继承scrapy.Spider类
                 meta["detailData"] = detailData
                 meta["contentPageNumber"] = contentPageNumber+1
                 # meta["parse"] = "detail"
-                self._set_redis_key(targetNextUrl, meta)
+                self._set_redis_key(targetNextUrl, meta,True)
                 self.log("detail nextPage %s %s" % (str(contentPageNumber+1),targetNextUrl))
                 # yield scrapy.Request(url=targetNextUrl, meta=meta, callback=self.parseDetail)
             else:
